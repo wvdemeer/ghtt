@@ -92,19 +92,23 @@ def generate_file_from_template(path, clone_url, repo: ghtt.config.StudentRepo):
     the template file is overwritten with the generated result.
     """
     print("TEMPLATE: ", open(path).read())
-
-    template = open(path).read()
-    outputText = render_template(template, clone_url, repo)
-    destination = str(path)
-    if destination.endswith('.jinja'):
-        os.remove(path)
-        destination = destination[:-6]
-    with open(destination, "w+") as d_file:
-        d_file.write(outputText)
+    try:
+        template = open(path).read()
+        outputText = render_template(template, clone_url, repo)
+        destination = str(path)
+        if destination.endswith('.jinja'):
+            os.remove(path)
+            destination = destination[:-6]
+        with open(destination, "w+") as d_file:
+            d_file.write(outputText)
+    except:
+        raise BaseException('Problem generating template for path={} clone_url={}'.format(path, clone_url))
 
 
 def render_template(template: str, clone_url, repo: ghtt.config.StudentRepo) -> str:
     template = jinja2.Template(template)
+    assert len(repo.students) == 2
+    assert len(repo.mentors) == 1
     return template.render(
         clone_url=clone_url,
         group=repo.group,

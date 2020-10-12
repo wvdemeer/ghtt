@@ -67,10 +67,12 @@ def get_persons(persons_config: dict, usernames: List[str] = [], groups: List[st
                     continue
                 person.record = row
                 person.comment = Template(mapping["comment"]).render(record=person.record)
+                def canonize_group(group):
+                    return re.sub("[^0-9a-z]+", "-", group.lower())
                 if mapping.get("group"):
                     person.group = person.record[mapping['group']]
-                    person.group = person.group.lower()
-                    person.group = re.sub("[^0-9a-z]+", "-", person.group)
+                    person.group_hrn = person.group
+                    person.group = canonize_group(person.group)
                     if person.group == "":
                         person.group = None
                     if groups and person.group not in groups:
@@ -79,6 +81,8 @@ def get_persons(persons_config: dict, usernames: List[str] = [], groups: List[st
                     person.groups = person.record[mapping['groups']].split(",")
                     if person.groups == "":
                         person.groups = []
+                    person.groups_hrn = list(person.groups)
+                    person.groups = [canonize_group(group) for group in person.groups]
                 persons.append(person)
     except FileNotFoundError:
         print("The student database '{}' was not found".format(persons_config['source']))
@@ -103,10 +107,12 @@ def get_organization() -> str:
 def get_repos(students: List[Person], mentors: Optional[List[Person]] = None) -> Dict[str, StudentRepo]:
     if mentors is None:
         mentors = []
+    print('get_repos with {} students and {} mentors'.format(len(students), len(mentors)))
     repos = {}
     student_config = get("students", None)
-    if not student_config:
-        return students
+    # if not student_config:
+        # return students  # wrong type
+    assert student_config
     mapping = student_config['field-mapping']
 
     organization = get_organization()
@@ -132,7 +138,14 @@ def get_repos(students: List[Person], mentors: Optional[List[Person]] = None) ->
         repo.organization = organization
         repo.mentors = [m for m in mentors if repo.group in m.groups]
         repos[repo.name] = repo
-    return repos
+    ok_repos = {}
+    for repname, repo in repos.items():
+        if len(repo.mentors) == 1 and len(repo.students) == 2:
+            ok_repos[repname] = repo
+        else:
+            print("Skipping {} because {} students and {} mentors"
+                  .format(repo.group, len(repo.students), len(repo.mentors)))
+    return ok_repos
 
 
 
