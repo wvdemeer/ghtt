@@ -71,7 +71,6 @@ def get_persons(persons_config: dict, usernames: List[str] = [], groups: List[st
                     return re.sub("[^0-9a-z]+", "-", group.lower())
                 if mapping.get("group"):
                     person.group = person.record[mapping['group']]
-                    person.group_hrn = person.group
                     person.group = canonize_group(person.group)
                     if person.group == "":
                         person.group = None
@@ -81,7 +80,7 @@ def get_persons(persons_config: dict, usernames: List[str] = [], groups: List[st
                     person.groups = person.record[mapping['groups']].split(",")
                     if person.groups == "":
                         person.groups = []
-                    person.groups_hrn = list(person.groups)
+                    person.groups = [group.strip() for group in person.groups]
                     person.groups = [canonize_group(group) for group in person.groups]
                 persons.append(person)
     except FileNotFoundError:
