@@ -294,7 +294,7 @@ def pull(ctx, source, students=None, groups=None):
     g_org = g.get_organization(ghtt.config.get_organization())
     
     students = ghtt.config.get_students(usernames=students, groups=groups)
-    repos = ghtt.config.get_repos(students)
+    repos = ghtt.config.get_repos(students, mentors=ghtt.config.get_mentors())
 
     summary = []
 
@@ -345,7 +345,7 @@ def grant(ctx, students=None, groups=None):
     for student in students:
         print(student.username, student.group)
 
-    repos = ghtt.config.get_repos(students)
+    repos = ghtt.config.get_repos(students, mentors=ghtt.config.get_mentors())
 
 
 
@@ -380,7 +380,7 @@ def remove_grant(ctx, students=None, groups=None):
     g_org = g.get_organization(ghtt.config.get_organization())
     
     students = ghtt.config.get_students(usernames=students, groups=groups)
-    repos = ghtt.config.get_repos(students)
+    repos = ghtt.config.get_repos(students, mentors=ghtt.config.get_mentors())
 
     for repo in repos.values():
         g_repo = g_org.get_repo(repo.name)
