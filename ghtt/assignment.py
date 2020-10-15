@@ -82,18 +82,27 @@ def create_pr(ctx, branch, title, body, source, students=None, groups=None, bran
     mentors = ghtt.config.get_mentors()
     repos = ghtt.config.get_repos(students, mentors=mentors)
 
+    no_confirm_needed = False
+
     for repo in repos.values():
         g_repo = g_org.get_repo(repo.name)
         if not branch_already_pushed:
             command = ["git", "push", g_repo.ssh_url, "master:{}".format(branch)]
             cwd = source
             print("\nwill run `{}`\nin directory `{}`.".format(command, cwd))
-            if click.confirm('Do you want to continue?'):
+            if click.confirm('Do you want to continue?', default=False, abort=True):
                 if not branch_already_pushed:
                     subprocess.check_call(command, cwd=cwd)
                 pr = g_repo.create_pull(title, "master", branch, body=body)
                 click.secho("created pull request {}".format(pr.html_url))
         else:
+            if no_confirm_needed or click.confirm('Do you want to create the PR in {}?'.format(repo.name), default=True):
+                if not no_confirm_needed and \
+                        click.confirm('Do you want to create the PR in all remaining repos?', default=False):
+                    no_confirm_needed = True
+            else:
+                click.secho("Aborting...", fg="red")
+                return
             click.secho("Creating pull request in {}".format(repo.name), fg="green")
             pr = g_repo.create_pull(title=title, body=body, base="master", head=branch)
             click.secho("created pull request {}".format(pr.html_url))
