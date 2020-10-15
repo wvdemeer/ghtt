@@ -5,6 +5,7 @@ import re
 from typing import List, Dict, Optional
 from urllib.parse import urlparse
 
+import click
 from jinja2 import Template
 import yaml
 
@@ -113,7 +114,7 @@ def get_repos(students: List[Person], mentors: Optional[List[Person]] = None) ->
     repos = {}
     student_config = get("students", None)
     # if not student_config:
-        # return students  # wrong type
+    # return students  # wrong type
     assert student_config
     mapping = student_config['field-mapping']
 
@@ -145,8 +146,17 @@ def get_repos(students: List[Person], mentors: Optional[List[Person]] = None) ->
         if len(repo.mentors) == 1 and len(repo.students) == 2:
             ok_repos[repname] = repo
         else:
-            print("Skipping {} because {} students and {} mentors"
-                  .format(repo.group, len(repo.students), len(repo.mentors)))
+            click.secho("Group {} has {} students and {} mentors:"
+                        .format(repo.group, len(repo.students), len(repo.mentors)))
+            for stud in repo.students:
+                click.secho('   - student {} ({})'.format(stud.username, stud.comment))
+            for ment in repo.mentors:
+                click.secho('   - mentor {} ({})'.format(ment.username, ment.comment))
+            if click.confirm('Include {}'.format(repo.group), default=False):
+                print("Explicitly including {}".format(repo.group))
+                ok_repos[repname] = repo
+            else:
+                print("Skipping {}".format(repo.group))
     return ok_repos
 
 

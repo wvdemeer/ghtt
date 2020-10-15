@@ -129,7 +129,7 @@ def generate_file_from_template(path, clone_url, repo: ghtt.config.StudentRepo):
 
 def render_template(template: str, clone_url, repo: ghtt.config.StudentRepo) -> str:
     template = jinja2.Template(template)
-    assert len(repo.students) == 2
+    assert len(repo.students) == 2 or len(repo.students) == 1
     assert len(repo.mentors) == 1
     return template.render(
         clone_url=clone_url,
@@ -234,13 +234,6 @@ def create_issues(ctx, path, students=None, groups=None):
 
     click.secho("# Creating issues defined in {}...".format(path), fg="green")
 
-    with open(path) as f:
-        issue_templates: Optional[List[Dict]] = yaml.safe_load(f)
-    assert issue_templates is not None
-    assert isinstance(issue_templates, list)
-    assert len(issue_templates) > 0
-    assert isinstance(issue_templates[0], dict)
-
     g: github.Github = ctx.obj['pyg']
     g_org = g.get_organization(ghtt.config.get_organization())
 
@@ -253,13 +246,21 @@ def create_issues(ctx, path, students=None, groups=None):
 
         g_repo = g_org.get_repo(repo.name)
 
+        with open(path) as f:
+            content = f.read()
+            issue_templates: Optional[List[Dict]] = yaml.safe_load(render_template(content, g_repo.ssh_url, repo))
+        assert issue_templates is not None
+        assert isinstance(issue_templates, list)
+        assert len(issue_templates) > 0
+        assert isinstance(issue_templates[0], dict)
+
         for issue_template in issue_templates:
             issue_type = issue_template.get('type')
 
             if issue_type == 'milestone':
                 try:
                     g_repo.create_milestone(
-                        title=render_template(issue_template.get('title'), g_repo.ssh_url, repo),
+                        title=issue_template.get('title'),
                         description=issue_template.get('description'),
                         due_on=issue_template.get('due date')
                     )
@@ -278,13 +279,11 @@ def create_issues(ctx, path, students=None, groups=None):
                     milestone = [ms for ms in g_repo.get_milestones() if ms.title == milestone][0]
 
                 g_repo.create_issue(
-                    title=render_template(issue_template.get('title'), g_repo.ssh_url, repo),
-                    body=render_template(issue_template.get('body'), g_repo.ssh_url, repo),
+                    title=issue_template.get('title'),
+                    body=issue_template.get('body'),
                     milestone=milestone,
                     labels=issue_template.get('labels', []),
-                    assignees=[
-                        render_template(a, g_repo.ssh_url, repo) for a in issue_template.get('assignees', [])
-                    ]
+                    assignees=issue_template.get('assignees', [])
                 )
 
 
