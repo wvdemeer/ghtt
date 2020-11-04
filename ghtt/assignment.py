@@ -106,6 +106,7 @@ def create_pr(ctx, branch, title, body, source, students=None, groups=None, bran
                     auto_mode = True
                 elif user_choice == 'Skip':
                     click.secho('Skipping {}'.format(repo.name), fg="yellow")
+                    continue
                 elif user_choice == 'Abort':
                     click.secho('Aborting!', fg="red")
                     return
@@ -263,6 +264,7 @@ def create_issues(ctx, path, students=None, groups=None):
                 auto_mode = True
             elif user_choice == 'Skip':
                 click.secho('Skipping {}'.format(repo.name), fg="yellow")
+                continue
             elif user_choice == 'Abort':
                 click.secho('Aborting!', fg="red")
                 return
