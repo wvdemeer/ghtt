@@ -82,7 +82,7 @@ def create_pr(ctx, branch, title, body, source, students=None, groups=None, bran
     mentors = ghtt.config.get_mentors()
     repos = ghtt.config.get_repos(students, mentors=mentors)
 
-    no_confirm_needed = False
+    auto_mode = False
 
     for repo in repos.values():
         g_repo = g_org.get_repo(repo.name)
@@ -96,13 +96,22 @@ def create_pr(ctx, branch, title, body, source, students=None, groups=None, bran
                 pr = g_repo.create_pull(title, "master", branch, body=body)
                 click.secho("created pull request {}".format(pr.html_url))
         else:
-            if no_confirm_needed or click.confirm('Do you want to create the PR in {}?'.format(repo.name), default=True):
-                if not no_confirm_needed and \
-                        click.confirm('Do you want to create the PR in all remaining repos?', default=False):
-                    no_confirm_needed = True
-            else:
-                click.secho("Aborting...", fg="red")
-                return
+            if not auto_mode:
+                user_choice = click.prompt('Do you want to create the PR in {}?'.format(repo.name),
+                                           default=None, show_choices=True,
+                                           type=click.Choice(['y', 'All', 'Skip', 'Abort'], case_sensitive=False))
+                if user_choice == 'y':
+                    pass
+                elif user_choice == 'All':
+                    auto_mode = True
+                elif user_choice == 'Skip':
+                    click.secho('Skipping {}'.format(repo.name), fg="yellow")
+                elif user_choice == 'Abort':
+                    click.secho('Aborting!', fg="red")
+                    return
+                else:
+                    raise ValueError('Unknown choice "{}": will abort!'.format(user_choice))
+
             click.secho("Creating pull request in {}".format(repo.name), fg="green")
             pr = g_repo.create_pull(title=title, body=body, base="master", head=branch)
             click.secho("created pull request {}".format(pr.html_url))
@@ -241,7 +250,25 @@ def create_issues(ctx, path, students=None, groups=None):
     mentors = ghtt.config.get_mentors()
     repos = ghtt.config.get_repos(students, mentors=mentors)
 
+    auto_mode = False
+
     for repo in repos.values():
+        if not auto_mode:
+            user_choice = click.prompt('Do you want to create the issue(s) in {}?'.format(repo.name),
+                                       default=None, show_choices=True,
+                                       type=click.Choice(['y', 'All', 'Skip', 'Abort'], case_sensitive=False))
+            if user_choice == 'y':
+                pass
+            elif user_choice == 'All':
+                auto_mode = True
+            elif user_choice == 'Skip':
+                click.secho('Skipping {}'.format(repo.name), fg="yellow")
+            elif user_choice == 'Abort':
+                click.secho('Aborting!', fg="red")
+                return
+            else:
+                raise ValueError('Unknown choice "{}": will abort!'.format(user_choice))
+
         click.secho("\n\nGenerating issues in repo {}".format(repo.name), fg="green")
 
         g_repo = g_org.get_repo(repo.name)
@@ -277,6 +304,9 @@ def create_issues(ctx, path, students=None, groups=None):
                 milestone = issue_template.get('milestone', None)
                 if milestone is not None:
                     milestone = [ms for ms in g_repo.get_milestones() if ms.title == milestone][0]
+                else:
+                    from github.GithubObject import NotSet
+                    milestone = NotSet
 
                 g_repo.create_issue(
                     title=issue_template.get('title'),

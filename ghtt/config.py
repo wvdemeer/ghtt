@@ -2,6 +2,7 @@
 #%%
 import csv
 import re
+from operator import attrgetter
 from typing import List, Dict, Optional
 from urllib.parse import urlparse
 
@@ -23,6 +24,10 @@ class Person:
         self.record = {}
         self.group = None
         self.groups = []
+
+    @property
+    def group_nr(self):
+        return int(re.sub(r'[^0-9]', '', self.group))
 
     def __str__(self):
         return "Student '{}' ('{}') Group: '{}'  Groups: '{}'  Record: {}".format(
@@ -95,7 +100,7 @@ def get_persons(persons_config: dict, usernames: List[str] = [], groups: List[st
 
 def get_students(usernames: List[str] = [], groups: List[str] = []) -> List[Person]:
     student_config = get("students", None)
-    return get_persons(student_config, usernames, groups)
+    return sorted(get_persons(student_config, usernames, groups), key=attrgetter('group_nr', 'username'))
 
 
 def get_mentors(usernames: List[str] = [], groups: List[str] = []) -> List[Person]:
