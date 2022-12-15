@@ -177,11 +177,11 @@ def create_pr(ctx, branch, title, body, source, yes, students=None, groups=None,
             click.secho("\nwill run `{}`\nin directory `{}`.".format(command, cwd))
 
             subprocess.check_call(command, cwd=cwd)
-            pr = g_repo.create_pull(title=title, body=body, base="master", head=branch)
+            pr = g_repo.create_pull(title=title, body=body, base="main", head=branch)
             click.secho("created pull request {}".format(pr.html_url))
         else:
             click.secho("Creating pull request in {}".format(repo.name), fg="green")
-            pr = g_repo.create_pull(title=title, body=body, base="master", head=branch)
+            pr = g_repo.create_pull(title=title, body=body, base="main", head=branch)
             click.secho("created pull request {}".format(pr.html_url))
 
 
@@ -275,7 +275,7 @@ def create_repos(ctx, source, yes, students=None, groups=None):
 
         click.secho("\n\nGenerating repo {}/{}".format(g_org.html_url, repo.name), fg="green")
 
-        subprocess.check_call(["git", "checkout", "master"], cwd=source)
+        subprocess.check_call(["git", "checkout", "main"], cwd=source)
         subprocess.call(["git", "branch", "-D", repo.name], cwd=source)
         subprocess.check_call(["git", "checkout", "-b", repo.name], cwd=source)
 
@@ -287,12 +287,12 @@ def create_repos(ctx, source, yes, students=None, groups=None):
         subprocess.check_call(["git", "add", "-A"], cwd=source)
         subprocess.call(["git", "commit", "-m", "fill in templates"], cwd=source)
         click.secho("Pushing source to {}".format(g_repo.ssh_url), fg="green")
-        subprocess.check_call(["git", "push", g_repo.ssh_url, "{}:master".format(repo.name)], cwd=source)
-        subprocess.check_call(["git", "checkout", "master"], cwd=source)
+        subprocess.check_call(["git", "push", g_repo.ssh_url, "{}:main".format(repo.name)], cwd=source)
+        subprocess.check_call(["git", "checkout", "main"], cwd=source)
 
         click.secho("Protecting the master branch so students can't rewrite history", fg="green")
         g_repo = g_org.get_repo(repo.name)
-        g_master = g_repo.get_branch("master")
+        g_master = g_repo.get_branch("main")
         g_master.edit_protection()
 
         click.secho("Adding comment to repo", fg="green")
@@ -612,3 +612,52 @@ def remove_grant(ctx, yes, students=None, groups=None):
             click.secho("Removing '{}' as collaborators from '{}'".format(
                 username, repo.name), fg="green")
             g_repo.remove_from_collaborators(username)
+
+
+@assignment.command()
+@click.pass_context
+@click.option(
+    '--students',
+    help='list of students')
+@click.option(
+    '--groups',
+    help='Comma-separated list of group names. Defaults to all groups.')
+@click.option(
+    '--yes',
+    help='Process all students/groups, without confirmation.', is_flag=True)
+def set_role_read(ctx, yes, students=None, groups=None):
+    """Removes students' write access to their repository, but not read access and access to issues etc
+    """
+    if students:
+        students = [s.strip() for s in students.split(",")]
+    if groups:
+        groups = [gr.strip() for gr in groups.split(",")]
+
+    click.secho("# Setting students role to 'read'..", fg="green")
+    click.secho("# Students: '{}'".format(students), fg="green")
+
+    g : github.Github = ctx.obj['pyg']
+    g_org = g.get_organization(ghtt.config.get_organization())
+
+    students = ghtt.config.get_students(usernames=students, groups=groups)
+    repos = ghtt.config.get_repos(students, mentors=ghtt.config.get_mentors())
+
+    asker = ProceedAsker(yes=yes, action='setting role to "read" for ')
+
+    for repo in repos.values():
+        try:
+            g_repo = g_org.get_repo(repo.name)
+        except UnknownObjectException:
+            click.secho("Warning: repository {} not found, skipping".format(repo.url), fg="yellow")
+            continue
+        if not asker.should_proceed(repo.url):
+            continue
+
+        # Remove write
+        for username in [s.username for s in repo.students]:
+            current_permission = g_repo.get_collaborator_permission(username)
+            click.secho("'{}' currently has '{}' access".format(username, current_permission))
+            if current_permission == 'read':
+                continue
+            click.secho("Removing '{}' write access from '{}'".format(username, repo.name), fg="green")
+            g_repo.add_to_collaborators(username, 'pull')
